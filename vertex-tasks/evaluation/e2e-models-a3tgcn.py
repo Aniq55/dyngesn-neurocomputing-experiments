@@ -30,6 +30,7 @@ from torch_geometric_temporal.dataset import ChickenpoxDatasetLoader, TwitterTen
 from torch_geometric_temporal.nn.recurrent import *
 from torch_geometric_temporal.signal import temporal_signal_split
 
+from stocks_loader import *
 
 def get_dataset(name, device):
     if name == 'chickenpox':
@@ -40,6 +41,8 @@ def get_dataset(name, device):
         dataset = PedalMeDatasetLoader().get_dataset(lags=1)
     elif name == 'wikimath':
         dataset = WikiMathsDatasetLoader().get_dataset(lags=1)
+    elif name == 'stocks':
+        dataset = StocksDatasetLoader(feature_mode=None, target_offset=1).get_dataset()
     else:
         raise ValueError('Wrong dataset name')
     train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.9)

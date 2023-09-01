@@ -27,23 +27,26 @@ from torch.nn.functional import linear
 
 from graphesn import DynamicGraphReservoir, initializer, Readout
 from graphesn.dataset import chickenpox_dataset, twitter_tennis_dataset, pedalme_dataset, wiki_maths_dataset
-from graphesn.util import compute_dynamic_graph_alpha, compute_graph_alpha, compute_dynamic_weighted_graph_alpha
-
+from graphesn.util import compute_dynamic_graph_alpha, compute_dynamic_weighted_graph_alpha
+from stocks_loader import *
 
 def prepare_data(name, device, weighted=False, lags=1):
     if name == 'chickenpox':
         data = chickenpox_dataset(target_lags=lags).to(device)
-        alpha = compute_graph_alpha(data.edge_index)
+        alpha = compute_dynamic_graph_alpha(data.edge_index)
         return data.edge_index, None, data.x, data.y, alpha, data.num_timesteps
     elif name == 'tennis':
         data = twitter_tennis_dataset(feature_mode='encoded', target_offset=lags).to(device)
         alpha = compute_dynamic_weighted_graph_alpha(data) if weighted else compute_dynamic_graph_alpha(data)
     elif name == 'pedalme':
         data = pedalme_dataset(target_lags=lags)
-        alpha = compute_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
+        alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
     elif name == 'wikimath':
         data = wiki_maths_dataset(target_lags=lags)
-        alpha = compute_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
+        alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
+    elif name == 'stocks':
+        data = stocks_dataset(feature_mode=None, target_offset=lags).to(device)
+        alpha = compute_dynamic_weighted_graph_alpha(data) if weighted else compute_dynamic_graph_alpha(data)
     else:
         raise ValueError('Wrong dataset name')
     return data.edge_index, data.edge_weight if weighted else None, data.x, data.y, alpha, data.num_timesteps
