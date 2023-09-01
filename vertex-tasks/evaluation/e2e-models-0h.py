@@ -71,7 +71,7 @@ def get_recurrent_model(name, in_features, units, nodes):
     elif name == 'tgcn':
         return TGCN(in_channels=in_features, out_channels=units)
     elif name == 'mpnnlstm':
-        return MPNNLSTM(in_channels=in_features, out_channels=units, hidden_size=units, num_nodes=nodes, window=1, dropout=0.5)
+        return MPNNLSTM(in_channels=in_features, hidden_size=units, num_nodes=nodes, window=1, dropout=0.5)
     elif name == 'agcrn':
         return AGCRN(number_of_nodes=nodes, in_channels=in_features, out_channels=units, K=1, embedding_dimensions=units)
     else:
