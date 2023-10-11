@@ -43,7 +43,7 @@ def get_dataset(name, device):
     elif name == 'wikimath':
         dataset = WikiMathsDatasetLoader().get_dataset(lags=1)
     elif name == 'stocks':
-        dataset = StocksDatasetLoader(feature_mode=None, target_offset=1).get_dataset()
+        dataset = StocksDatasetLoader(feature_mode="encoded", target_offset=1).get_dataset()
     else:
         raise ValueError('Wrong dataset name')
     train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.9)

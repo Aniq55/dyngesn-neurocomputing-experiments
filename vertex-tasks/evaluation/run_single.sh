@@ -1,3 +1,5 @@
+#!/bin/bash
+
 python dyngesn-model.py --dataset $1 --device $2 | tee -a $1.txt
 python e2e-models-1h.py --model dcrnn --dataset $1 --device $2 | tee -a $1.txt
 python e2e-models-1h.py --model gconvgru --dataset $1 --device $2 | tee -a $1.txt

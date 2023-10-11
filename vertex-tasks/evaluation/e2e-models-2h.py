@@ -42,7 +42,7 @@ def get_dataset(name, device):
     elif name == 'wikimath':
         dataset = WikiMathsDatasetLoader().get_dataset(lags=1)
     elif name == 'stocks':
-        dataset = StocksDatasetLoader(feature_mode=None, target_offset=1).get_dataset()
+        dataset = StocksDatasetLoader(feature_mode="encoded", target_offset=1).get_dataset()
     else:
         raise ValueError('Wrong dataset name')
     train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.9)
@@ -106,6 +106,15 @@ num_nodes, num_features = train_dataset[0].x.shape
 
 train_time, train_mse, valid_mse, test_time, test_mse = [], [], [], [], []
 
+y_in_train = []
+y_in_valid = []
+y_in_test = []
+
+y_out_train = []
+y_out_valid = []
+y_out_test = []
+
+flag_ = True
 for _ in range(args.trials):
     model = RecurrentGCN(args.model.lower(), num_features, args.units, num_nodes).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=args.lr)
@@ -144,21 +153,48 @@ for _ in range(args.trials):
     h, c = None, None
     for snapshot in train_dataset:
         h, c, y_hat = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
+        if flag_:
+            y_in_train.append(np.array(snapshot.y.detach().cpu()))
+            y_out_train.append(np.array(y_hat.detach().cpu()))
     for time, snapshot in enumerate(valid_dataset):
         h, c, y_hat = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
+        if flag_:
+            y_in_valid.append(np.array(snapshot.y.detach().cpu()))
+            y_out_valid.append(np.array(y_hat.detach().cpu()))
     for time, snapshot in enumerate(test_dataset):
         h, c, y_hat = model(snapshot.x, snapshot.edge_index, snapshot.edge_attr, h, c)
+        if flag_:
+            y_in_test.append(np.array(snapshot.y.detach().cpu()))
+            y_out_test.append(np.array(y_hat.detach().cpu()))
         cost = cost + torch.mean((y_hat - snapshot.y) ** 2)
     cost = cost / (time + 1)
     toc = perf_counter()
     test_mse.append(cost.item())
     test_time.append((toc - tic) * 1000)
+    flag_ = False
 
 print(args.model,
-      f'{mean(train_mse):.3f} ± {stdev(train_mse):.3f}',
-      f'{mean(valid_mse):.3f} ± {stdev(valid_mse):.3f}',
-      f'{mean(test_mse):.3f} ± {stdev(test_mse):.3f}',
-      f'{mean([t / args.epochs for t in train_time]):.5f} ± {stdev([t / args.epochs for t in train_time]):.5f}',
-      f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
-      f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
-      sep='\t')
+    f'{mean(train_mse):.3f} ± {stdev(train_mse):.3f}',
+    f'{mean(valid_mse):.3f} ± {stdev(valid_mse):.3f}',
+    f'{mean(test_mse):.3f} ± {stdev(test_mse):.3f}',
+    f'{mean([t / args.epochs for t in train_time]):.5f} ± {stdev([t / args.epochs for t in train_time]):.5f}',
+    f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
+    f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
+    sep='\t')
+
+
+dict_out = {
+    "y_in_train" : y_in_train, 
+    "y_in_valid": y_in_valid, 
+    "y_in_test" : y_in_test,
+    "y_out_train" : y_out_train,
+    "y_out_valid" : y_out_valid,
+    "y_out_test" : y_out_test 
+}
+
+import pickle
+
+file_path =  './results/'+args.model.lower()+'_dict.pkl'
+with open(file_path, 'wb') as file:
+    pickle.dump(dict_out, file)
+

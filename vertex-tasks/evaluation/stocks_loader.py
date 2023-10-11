@@ -28,11 +28,13 @@ def onehot_encoding(x, unique_vals):
 
 def encode_features(X, log_degree_cutoff=4):
     X_arr = np.array(X)
-    a = transform_degree(X_arr[:, 0], log_degree_cutoff)
-    b = transform_transitivity(X_arr[:, 1])
-    A = onehot_encoding(a, range(log_degree_cutoff + 1))
-    B = onehot_encoding(b, range(11))
-    return np.concatenate((A, B), axis=1)
+    # a = transform_degree(X_arr[:, 0], log_degree_cutoff)
+    # b = transform_transitivity(X_arr[:, 1])
+    # A = onehot_encoding(a, range(log_degree_cutoff + 1))
+    # B = onehot_encoding(b, range(11))
+    # return np.concatenate((A, B), axis=1)
+    X_arr = np.squeeze(X_arr, axis=0)
+    return X_arr
 
 def edge_list_from_adj(A):
     n = A.shape[0]
@@ -43,6 +45,11 @@ def edge_list_from_adj(A):
             if A[i][j]:
                 E.append([i,j])
     return E
+
+def perc_change(X):
+    (n, T) = X.shape
+    Y = (X[:,1:] - X[:,0:-1])/X[:,0:-1]
+    return Y      
 
 class StocksDatasetLoader(object): # compatible with PyTorch Temporal [?]
     """
@@ -79,10 +86,10 @@ class StocksDatasetLoader(object): # compatible with PyTorch Temporal [?]
         self._read_local_data()
             
             
-    def _read_local_data(self):
+    def _read_local_data(self, perc_change_flag=False):
         
         sample_interval = 28 # sampling interval in days
-        m = 10  # width of correlation window
+        m = 5  # width of correlation window
         
         # pickle dump df
         file_path = '/home/chri6578/Documents/GG_SPP/dataset/stocks_pd.pickle'
@@ -100,6 +107,10 @@ class StocksDatasetLoader(object): # compatible with PyTorch Temporal [?]
 
         E = []
         (n, T) = X.shape
+        if perc_change_flag:
+            X = perc_change(X)
+            (n, T) = X.shape
+        
         thresh = 0.5
         for i in range(int(T-m)):
             x_i = X[:, i:i+m]
@@ -120,18 +131,18 @@ class StocksDatasetLoader(object): # compatible with PyTorch Temporal [?]
         T = len(E)
         stocks_data = {}
 
-        for t in range(T-1):
-            stocks_data[str(t)] = {
-                'index': t,
+        for t in range(1,T-1):
+            stocks_data[str(t-1)] = {
+                'index': t-1,
                 'edges': E[t],
                 'weights' : list(np.ones((len(E[t]),))),
                 'y' : X[t+1],
-                'X' : X[t]
+                'X' : np.array([X[t],X[t-1]]).T
             }
             
-            # X: stock value at time t, y: stock value at time t+1
+            # X: stock value at time t and t-1, y: stock value at time t+1
 
-        stocks_data['time_periods'] = T-1
+        stocks_data['time_periods'] = T-2
         
         self._dataset = stocks_data       
 
@@ -156,7 +167,7 @@ class StocksDatasetLoader(object): # compatible with PyTorch Temporal [?]
                 W = W[edge_indices[i]]
             self.edge_weights.append(W)
 
-    def _get_features(self):
+    def _get_features(self): # something happens here.
         self.features = []
         for time in range(self._dataset["time_periods"]):
             X = np.array(self._dataset[str(time)]["X"])
@@ -175,10 +186,12 @@ class StocksDatasetLoader(object): # compatible with PyTorch Temporal [?]
             # predict node degrees in advance
             snapshot_id = min(time + self.target_offset, T - 1)
             y = np.array(self._dataset[str(snapshot_id)]["y"])
-            # logarithmic transformation for node degrees
-            y = np.log(1.0 + y)
-            if self.N != None:
-                y = y[: self.N]
+            
+            # # logarithmic transformation for node degrees
+            # y = np.log(1.0 + y)
+            # if self.N != None:
+            #     y = y[: self.N]
+                
             self.targets.append(y)
 
     def get_dataset(self) -> DynamicGraphTemporalSignal:

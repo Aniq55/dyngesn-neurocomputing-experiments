@@ -43,7 +43,7 @@ def get_dataset(name, device):
     elif name == 'wikimath':
         dataset = WikiMathsDatasetLoader().get_dataset(lags=1)
     elif name == 'stocks':
-        dataset = StocksDatasetLoader(feature_mode=None, target_offset=1).get_dataset()
+        dataset = StocksDatasetLoader(feature_mode="encoded", target_offset=1).get_dataset()
     else:
         raise ValueError('Wrong dataset name')
     train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.9)
@@ -108,6 +108,7 @@ args = parser.parse_args()
 
 device = torch.device(args.device)
 train_dataset, valid_dataset, test_dataset = get_dataset(args.dataset, device)
+print(train_dataset[0].x.shape)
 num_nodes, num_features = train_dataset[0].x.shape
 
 train_time, train_mse, valid_mse, test_time, test_mse = [], [], [], [], []

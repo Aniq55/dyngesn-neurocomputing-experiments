@@ -33,19 +33,23 @@ from stocks_loader import *
 def prepare_data(name, device, weighted=False, lags=1):
     if name == 'chickenpox':
         data = chickenpox_dataset(target_lags=lags).to(device)
-        alpha = compute_dynamic_graph_alpha(data.edge_index)
+        # alpha = compute_dynamic_graph_alpha(data.edge_index)
+        alpha = 5.4
         return data.edge_index, None, data.x, data.y, alpha, data.num_timesteps
     elif name == 'tennis':
-        data = twitter_tennis_dataset(feature_mode='encoded', target_offset=lags).to(device)
+        # data = twitter_tennis_dataset(feature_mode='encoded', target_offset=lags).to(device) # why encoded?
+        data = twitter_tennis_dataset(feature_mode=None, target_offset=lags).to(device)
         alpha = compute_dynamic_weighted_graph_alpha(data) if weighted else compute_dynamic_graph_alpha(data)
     elif name == 'pedalme':
         data = pedalme_dataset(target_lags=lags)
         alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
     elif name == 'wikimath':
-        data = wiki_maths_dataset(target_lags=lags)
-        alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
+        data = wiki_maths_dataset(target_lags=lags).to(device)
+        # print(data.y)
+        alpha = 57.9
+        # alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
     elif name == 'stocks':
-        data = stocks_dataset(feature_mode=None, target_offset=lags).to(device)
+        data = stocks_dataset(feature_mode="encoded", target_offset=lags).to(device)
         alpha = compute_dynamic_weighted_graph_alpha(data) if weighted else compute_dynamic_graph_alpha(data)
     else:
         raise ValueError('Wrong dataset name')
@@ -74,6 +78,15 @@ def validate_on(weights, Xval, yval):
     return torch.mean((linear(Xval, weights[0], weights[1]) - yval) ** 2)
 
 
+y_in_train = []
+y_in_valid = []
+y_in_test = []
+
+y_out_train = []
+y_out_valid = []
+y_out_test = []
+
+flag_ = True
 for _ in range(args.trials):
     reservoir = DynamicGraphReservoir(num_layers=1, in_features=x.shape[-1], hidden_features=args.units, return_sequences=True)
     reservoir.initialize_parameters(recurrent=initializer('uniform', sigma=args.sigma / alpha),
@@ -88,6 +101,9 @@ for _ in range(args.trials):
                 validate=lambda weights: validate_on(weights, X[T_train:T_valid].view(-1, X.shape[-1]), y[T_train:T_valid].view(-1, y.shape[-1])))
     toc = perf_counter()
     mse_loss = torch.mean((readout(X[:T_train].view(-1, X.shape[-1])) - y[:T_train].view(-1, y.shape[-1])) ** 2)
+    if flag_:
+        y_in_train.append(np.array(readout(X[:T_train].view(-1, X.shape[-1])).detach().cpu()))
+        y_out_train.append(np.array(y[:T_train].view(-1, y.shape[-1]).detach().cpu()))
     train_mse.append(mse_loss.item())
     train_time.append((toc - tic) * 1000)
 
@@ -95,13 +111,34 @@ for _ in range(args.trials):
     X = reservoir(edge_index=edge_index, input=x)
     y_hat = readout(X[T_valid:].view(-1, X.shape[-1]))
     mse_loss = torch.mean((y_hat - y[T_valid:].view(-1, y.shape[-1])) ** 2)
+    if flag_:
+        y_in_test.append(np.array(y[T_valid:].view(-1, y.shape[-1]).detach().cpu()))
+        y_out_test.append(y_hat.detach().cpu())
     toc = perf_counter()
     test_mse.append(mse_loss.item())
     test_time.append((toc - tic) * 1000)
+    
+    flag_ = False
 
 print(f'dyngesn:{args.dataset}',
-      f'{mean(train_mse):.3f} ± {stdev(train_mse):.3f}',
-      f'{mean(test_mse):.3f} ± {stdev(test_mse):.3f}',
-      f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
-      f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
-      sep='\t')
+    f'{mean(train_mse):.3f} ± {stdev(train_mse):.3f}',
+    f'{mean(test_mse):.3f} ± {stdev(test_mse):.3f}',
+    f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
+    f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
+    sep='\t')
+
+
+dict_out = {
+    "y_in_train" : y_in_train, 
+    "y_in_valid": y_in_valid, 
+    "y_in_test" : y_in_test,
+    "y_out_train" : y_out_train,
+    "y_out_valid" : y_out_valid,
+    "y_out_test" : y_out_test 
+}
+
+import pickle
+
+file_path =  './results/dyngesn_dict.pkl'
+with open(file_path, 'wb') as file:
+    pickle.dump(dict_out, file)
