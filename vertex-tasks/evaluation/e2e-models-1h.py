@@ -162,10 +162,9 @@ for _ in range(args.trials):
     test_time.append((toc - tic) * 1000)
 
 print(args.model,
-      f'{mean(train_mse):.3f} ± {stdev(train_mse):.3f}',
-      f'{mean(valid_mse):.3f} ± {stdev(valid_mse):.3f}',
-      f'{mean(test_mse):.3f} ± {stdev(test_mse):.3f}',
-      f'{mean([t / args.epochs for t in train_time]):.5f} ± {stdev([t / args.epochs for t in train_time]):.5f}',
-      f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
-      f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
-      sep='\t')
+    f'{mean(np.sqrt(train_mse)):.3f} ± {stdev(np.sqrt(train_mse)):.3f}',
+    f'{mean(np.sqrt(test_mse)):.3f} ± {stdev(np.sqrt(test_mse)):.3f}',
+    f'{mean([t / args.epochs for t in train_time]):.5f} ± {stdev([t / args.epochs for t in train_time]):.5f}',
+    f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
+    f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
+    sep='\t')

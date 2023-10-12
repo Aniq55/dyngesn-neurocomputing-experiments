@@ -41,8 +41,9 @@ def prepare_data(name, device, weighted=False, lags=1):
         data = twitter_tennis_dataset(feature_mode=None, target_offset=lags).to(device)
         alpha = compute_dynamic_weighted_graph_alpha(data) if weighted else compute_dynamic_graph_alpha(data)
     elif name == 'pedalme':
-        data = pedalme_dataset(target_lags=lags)
-        alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
+        data = pedalme_dataset(target_lags=lags).to(device)
+        # alpha = compute_dynamic_graph_alpha(data.edge_index, data.edge_weight if weighted else None)
+        alpha = 15.0
     elif name == 'wikimath':
         data = wiki_maths_dataset(target_lags=lags).to(device)
         # print(data.y)
@@ -121,8 +122,8 @@ for _ in range(args.trials):
     flag_ = False
 
 print(f'dyngesn:{args.dataset}',
-    f'{mean(train_mse):.3f} ± {stdev(train_mse):.3f}',
-    f'{mean(test_mse):.3f} ± {stdev(test_mse):.3f}',
+    f'{mean(np.sqrt(train_mse)):.3f} ± {stdev(np.sqrt(train_mse)):.3f}',
+    f'{mean(np.sqrt(test_mse)):.3f} ± {stdev(np.sqrt(test_mse)):.3f}',
     f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
     f'{mean(test_time):.5f} ± {stdev(test_time):.5f}',
     sep='\t')
