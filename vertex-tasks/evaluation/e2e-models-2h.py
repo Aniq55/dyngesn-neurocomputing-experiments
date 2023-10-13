@@ -32,7 +32,7 @@ from torch_geometric_temporal.signal import temporal_signal_split
 
 from stocks_loader import *
 
-def get_dataset(name, device):
+def get_dataset(name, device, trsplit):
     if name == 'chickenpox':
         dataset = ChickenpoxDatasetLoader().get_dataset(lags=1)
     elif name == 'tennis':
@@ -45,7 +45,7 @@ def get_dataset(name, device):
         dataset = StocksDatasetLoader(feature_mode="encoded", target_offset=1).get_dataset()
     else:
         raise ValueError('Wrong dataset name')
-    train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=0.9)
+    train_dataset, test_dataset = temporal_signal_split(dataset, train_ratio=trsplit)
     train_dataset, valid_dataset = temporal_signal_split(train_dataset, train_ratio=8/9)
     return [snapshot.to(device) for snapshot in train_dataset], [snapshot.to(device) for snapshot in valid_dataset], [snapshot.to(device) for snapshot in test_dataset]
 
@@ -98,10 +98,11 @@ parser.add_argument('--device', help='device for torch computations', default='c
 parser.add_argument('--epochs', help='number of epochs', type=int, default=100)
 parser.add_argument('--lr', help='learning rate', type=float, default=0.01)
 parser.add_argument('--trials', help='number of trials', type=int, default=10)
+parser.add_argument('--trsplit', help='train split', type=float, default=0.8)
 args = parser.parse_args()
 
 device = torch.device(args.device)
-train_dataset, valid_dataset, test_dataset = get_dataset(args.dataset, device)
+train_dataset, valid_dataset, test_dataset = get_dataset(args.dataset, device, args.trsplit)
 num_nodes, num_features = train_dataset[0].x.shape
 
 train_time, train_mse, valid_mse, test_time, test_mse = [], [], [], [], []

@@ -65,11 +65,12 @@ parser.add_argument('--sigma', help='sigma for recurrent matrix initialization',
 parser.add_argument('--leakage', help='leakage constant', type=float, default=0.9)
 parser.add_argument('--ld', help='readout lambda', type=float, nargs='+', default=[1e-3])
 parser.add_argument('--trials', help='number of trials', type=int, default=10)
+parser.add_argument('--trsplit', help='train split', type=float, default=0.8)
 args = parser.parse_args()
 
 device = torch.device(args.device)
 edge_index, edge_weight, x, y, alpha, T = prepare_data(args.dataset, device)
-T_train, T_valid = int(T * 0.8), int(T * 0.9)
+T_train, T_valid = int(T * 0.88*args.trsplit), int(T * args.trsplit)
 print(f'alpha = {alpha:.2f}')
 
 train_time, train_mse, test_time, test_mse = [], [], [], []
@@ -121,7 +122,8 @@ for _ in range(args.trials):
     
     flag_ = False
 
-print(f'dyngesn:{args.dataset}',
+print(f'split: {args.trsplit}')
+print(f'dyngesn:',
     f'{mean(np.sqrt(train_mse)):.3f} ± {stdev(np.sqrt(train_mse)):.3f}',
     f'{mean(np.sqrt(test_mse)):.3f} ± {stdev(np.sqrt(test_mse)):.3f}',
     f'{mean(train_time):.5f} ± {stdev(train_time):.5f}',
